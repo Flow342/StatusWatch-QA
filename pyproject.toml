@@ -1,0 +1,10 @@
+[tool.pytest]
+minversion = "9.0"
+addopts = ["--strict-markers", "-v"]
+testpaths = [
+    "tests",
+]
+markers = [
+    "smoke",
+    "regression"
+]
