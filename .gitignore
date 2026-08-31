@@ -1,0 +1,14 @@
+# Environment files — never commit real secrets. Keep the .env.example files.
+.env
+.env.*
+!.env.example
+.venv/
+
+*.log
+
+.DS_Store
+.idea/
+.vscode/
+
+.pytest_cache/
+__pycache__/
