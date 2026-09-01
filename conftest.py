@@ -1,7 +1,12 @@
+import os
+from dotenv import load_dotenv
 import pytest
 
-@pytest.fixture
-def generateData():
-    login = "login@mail.ru"
-    password = "1234"
-    return {"login": login, "password": password}
+load_dotenv()
+
+@pytest.fixture(scope='session')
+def base_url():
+    url = os.getenv("URL")
+    if not url:
+        pytest.fail("URL doesn't exist, check .env")
+    return url
