@@ -1,24 +1,74 @@
 name: CI
 
 on:
-  push:  
+  push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      backend_tag:
+        description: Тег backend-образа в ECR
+        default: latest
+      frontend_tag:
+        description: Тег frontend-образа в ECR
+        default: latest
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     name: test-pipeline
+    timeout-minutes: 20
     steps:
       - name: Check out repo code
         uses: actions/checkout@v7
+
+      - name: Check out the test stand
+        uses: actions/checkout@v7
+        with:
+          repository: Flow342/StatusWatch
+          path: stand
+
       - name: Setup python
         uses: actions/setup-python@v7
         with:
           python-version: "3.14.7"
           cache: 'pip'
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PULL_ROLE_ARN }}
+          aws-region: eu-north-1
+          role-skip-session-tagging: true
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Start test stand
+        run: stand/scripts/test-env-up.sh
+        env:
+          BACKEND_TAG: ${{ inputs.backend_tag || 'latest' }}
+          FRONTEND_TAG: ${{ inputs.frontend_tag || 'latest' }}
+
       - name: Run tests
-        run: pytest -m "not smoke"
+        run: pytest
+        env:
+          STATUSWATCH_BASE_URL: http://localhost:18080
+          ADMIN_USERNAME: admin
+          ADMIN_PASSWORD: test-password
+
+      - name: Dump stand logs on failure
+        if: failure()
+        run: docker compose -f stand/docker-compose.test.yml logs --tail=200
+
+      - name: Stop test stand
+        if: always()
+        run: stand/scripts/test-env-down.sh
